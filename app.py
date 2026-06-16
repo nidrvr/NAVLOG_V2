@@ -158,148 +158,148 @@ if len(st.session_state.raw_parsed_route) >= 2:
     # STEP 4: LEG-BY-LEG CONFIGURATIONS
     # ==========================================
     st.subheader("4. Leg Configurations (Altitude & RPM)")
-st.markdown("Select an altitude to view the available performance profiles from the POH.")
+    st.markdown("Select an altitude to view the available performance profiles from the POH.")
 
-leg_configs = {}
-max_planned_gph = 8.5 # Fallback baseline
+    leg_configs = {}
+    max_planned_gph = 8.5 # Fallback baseline
 
-for i in range(len(final_route) - 1):
-    from_pt = final_route[i]['id']
-    to_pt = final_route[i+1]['id']
-    
-    st.markdown(f"**Leg: {from_pt} ➔ {to_pt}**")
-    col_alt, col_rpm, col_bhp = st.columns([2, 2, 1])
-    
-    with col_alt:
-        # Swap to number_input to allow custom values like 3500
-        alt_val = st.number_input(f"Altitude (ft)", min_value=1000, max_value=14000, step=500, value=2000, key=f"alt_{i}")
+    for i in range(len(final_route) - 1):
+        from_pt = final_route[i]['id']
+        to_pt = final_route[i+1]['id']
         
-    alt_str = str(alt_val)
-    poh_alts = sorted([int(k) for k in POH_DATA.keys()])
-    
-    # Find the ceiling altitude in the POH to restrict impossible RPMs at custom altitudes
-    ceiling_alt = str(next((a for a in poh_alts if a >= alt_val), max(poh_alts)))
-    
-    if ceiling_alt in POH_DATA and "ISA" in POH_DATA[ceiling_alt]:
-        valid_rpms = sorted([int(rpm) for rpm in POH_DATA[ceiling_alt]["ISA"].keys()], reverse=True)
-    else:
-        valid_rpms = [2600, 2550, 2500, 2400, 2300, 2200, 2100]
-
-    with col_rpm:
-        rpm_val = st.selectbox(f"RPM Setting", options=valid_rpms, key=f"rpm_{i}")
+        st.markdown(f"**Leg: {from_pt} ➔ {to_pt}**")
+        col_alt, col_rpm, col_bhp = st.columns([2, 2, 1])
         
-    with col_bhp:
-        rpm_str = str(rpm_val)
-        bhp = "N/A"
-        if ceiling_alt in POH_DATA and "ISA" in POH_DATA[ceiling_alt]:
-            bhp_data = POH_DATA[ceiling_alt]["ISA"].get(rpm_str, {})
-            bhp = bhp_data.get("MCP", "N/A")
+        with col_alt:
+            # Swap to number_input to allow custom values like 3500
+            alt_val = st.number_input(f"Altitude (ft)", min_value=1000, max_value=14000, step=500, value=2000, key=f"alt_{i}")
             
-            # Track max GPH for Step 5 fuel reserves
-            leg_gph = bhp_data.get("GPH", 0)
-            if isinstance(leg_gph, (int, float)) and leg_gph > max_planned_gph:
-                max_planned_gph = float(leg_gph)
+        alt_str = str(alt_val)
+        poh_alts = sorted([int(k) for k in POH_DATA.keys()])
         
-        st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
-        st.write(f"**BHP: {bhp}%**")
+        # Find the ceiling altitude in the POH to restrict impossible RPMs at custom altitudes
+        ceiling_alt = str(next((a for a in poh_alts if a >= alt_val), max(poh_alts)))
+        
+        if ceiling_alt in POH_DATA and "ISA" in POH_DATA[ceiling_alt]:
+            valid_rpms = sorted([int(rpm) for rpm in POH_DATA[ceiling_alt]["ISA"].keys()], reverse=True)
+        else:
+            valid_rpms = [2600, 2550, 2500, 2400, 2300, 2200, 2100]
+    
+        with col_rpm:
+            rpm_val = st.selectbox(f"RPM Setting", options=valid_rpms, key=f"rpm_{i}")
+            
+        with col_bhp:
+            rpm_str = str(rpm_val)
+            bhp = "N/A"
+            if ceiling_alt in POH_DATA and "ISA" in POH_DATA[ceiling_alt]:
+                bhp_data = POH_DATA[ceiling_alt]["ISA"].get(rpm_str, {})
+                bhp = bhp_data.get("MCP", "N/A")
+                
+                # Track max GPH for Step 5 fuel reserves
+                leg_gph = bhp_data.get("GPH", 0)
+                if isinstance(leg_gph, (int, float)) and leg_gph > max_planned_gph:
+                    max_planned_gph = float(leg_gph)
+            
+            st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
+            st.write(f"**BHP: {bhp}%**")
         
     leg_configs[to_pt] = {"altitude": alt_str, "rpm": rpm_str}
     final_route[i+1]['altitude'] = alt_val
     final_route[i+1]['rpm'] = rpm_val
 
-st.divider()
+    st.divider()
     # ==========================================
     # STEP 5: GENERATION
     # ==========================================
-st.subheader("5. Fuel Reserves & Compile Flight Log")
+    st.subheader("5. Fuel Reserves & Compile Flight Log")
 
-col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-with col1:
-    planned_ramp_fuel = st.number_input("Planned Ramp Fuel (Gallons)", min_value=0.0, value=0.0, step=1.0, help="Leave as 0 to calculate minimum legally required fuel layout.")
-
-with col2:
-    st.markdown("**Contingency Rules**")
-    cont_time = st.number_input("Contingency Fuel (Minutes)", min_value=0, value=10, step=5)
-    cont_flow = st.number_input("Contingency Burn Rate (GPH)", min_value=1.0, value=max_planned_gph, step=0.1)
+    with col1:
+        planned_ramp_fuel = st.number_input("Planned Ramp Fuel (Gallons)", min_value=0.0, value=0.0, step=1.0, help="Leave as 0 to calculate minimum legally required fuel layout.")
     
-with col3:
-    st.markdown("**Reserve Rules**")
-    res_time = st.number_input("Reserve Fuel (Minutes)", min_value=0, value=30, step=5)
-    res_flow = st.number_input("Reserve Burn Rate (GPH)", min_value=1.0, value=max_planned_gph, step=0.1)
+    with col2:
+        st.markdown("**Contingency Rules**")
+        cont_time = st.number_input("Contingency Fuel (Minutes)", min_value=0, value=10, step=5)
+        cont_flow = st.number_input("Contingency Burn Rate (GPH)", min_value=1.0, value=max_planned_gph, step=0.1)
+        
+    with col3:
+        st.markdown("**Reserve Rules**")
+        res_time = st.number_input("Reserve Fuel (Minutes)", min_value=0, value=30, step=5)
+        res_flow = st.number_input("Reserve Burn Rate (GPH)", min_value=1.0, value=max_planned_gph, step=0.1)
 
-    if st.button("Generate Official Navlog PDF", type="primary", use_container_width=True):
-        with st.spinner("Processing performance math models and stamping PDF..."):
-            try:
-                FLIGHT_PROFILES = {
-                    "FLIGHT_DATE": dep_date.strftime("%Y-%m-%d"),
-                    "FLIGHT_TIME": dep_time_z,
-                    "PILOT_NAME": pilot_name,
-                    "AIRCRAFT_ID": aircraft_id,
-                    "ALTIMETER": altimeter,
-                    "TURNING_POINTS": turning_points,
-                    "DESTINATIONS": destinations,
-                    "FUEL_RESERVES": {
-                        "cont_min": cont_time, 
-                        "cont_gph": cont_flow, 
-                        "omit_reserve": False,
-                        "planned_ramp_fuel": planned_ramp_fuel if planned_ramp_fuel > 0 else ""
-                    },
-                    "FINAL_ROUTE": final_route
-                }
-                
-                # Merge the leg-specific configs into the main dictionary for engine compatibility
-                for to_id, config in leg_configs.items():
-                    FLIGHT_PROFILES[to_id] = config
-
-                # 1. Execute performance math on major legs
-                calculated_legs = process_flight_plan(final_route, leg_configs=FLIGHT_PROFILES)
-                
-                # 2. Append all checkpoints
-                from checkpoint_math import process_checkpoints
-                combined_checkpoints = st.session_state.raw_checkpoints + user_assigned_checkpoints
-                
-                processed_checkpoints = process_checkpoints(
-                    final_route, 
-                    calculated_legs, 
-                    combined_checkpoints, 
-                    turning_points
-                )
-
-                # 3. Compile fuel layout
-                total_enroute_fuel = sum(float(leg.get('fuel_req', 0)) for leg in calculated_legs)
-                startup_fuel = 1.4
-                calculated_cont_fuel = (cont_time / 60.0) * cont_flow
-                calculated_res_fuel = (res_time / 60.0) * res_flow
-                total_ramp_fuel = startup_fuel + total_enroute_fuel + calculated_cont_fuel + calculated_res_fuel
-                
-                starting_pfob = planned_ramp_fuel if planned_ramp_fuel > 0 else total_ramp_fuel
-
-                # 4. Generate PDF
-                output_filename = generate_unique_filename(final_route)
-                
-                create_overlay(
-                    legs=calculated_legs,
-                    route_data=final_route,
-                    processed_checkpoints=processed_checkpoints,
-                    flight_configs=FLIGHT_PROFILES,
-                    total_ramp_fuel=total_ramp_fuel,
-                    starting_pfob=starting_pfob,
-                    output_filename=output_filename
-                )
-
-                if os.path.exists(output_filename):
-                    st.success("Navlog compiled successfully!")
-                    with open(output_filename, "rb") as pdf_file:
-                        st.download_button(
-                            label="📥 Download Stamped Navlog PDF",
-                            data=pdf_file,
-                            file_name=output_filename,
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                else:
-                    st.error("Stamping engine execution succeeded, but output file asset was missing.")
-
-            except Exception as e:
-                st.error(f"Execution error inside navlog calculation script: {str(e)}")
+        if st.button("Generate Official Navlog PDF", type="primary", use_container_width=True):
+            with st.spinner("Processing performance math models and stamping PDF..."):
+                try:
+                    FLIGHT_PROFILES = {
+                        "FLIGHT_DATE": dep_date.strftime("%Y-%m-%d"),
+                        "FLIGHT_TIME": dep_time_z,
+                        "PILOT_NAME": pilot_name,
+                        "AIRCRAFT_ID": aircraft_id,
+                        "ALTIMETER": altimeter,
+                        "TURNING_POINTS": turning_points,
+                        "DESTINATIONS": destinations,
+                        "FUEL_RESERVES": {
+                            "cont_min": cont_time, 
+                            "cont_gph": cont_flow, 
+                            "omit_reserve": False,
+                            "planned_ramp_fuel": planned_ramp_fuel if planned_ramp_fuel > 0 else ""
+                        },
+                        "FINAL_ROUTE": final_route
+                    }
+                    
+                    # Merge the leg-specific configs into the main dictionary for engine compatibility
+                    for to_id, config in leg_configs.items():
+                        FLIGHT_PROFILES[to_id] = config
+    
+                    # 1. Execute performance math on major legs
+                    calculated_legs = process_flight_plan(final_route, leg_configs=FLIGHT_PROFILES)
+                    
+                    # 2. Append all checkpoints
+                    from checkpoint_math import process_checkpoints
+                    combined_checkpoints = st.session_state.raw_checkpoints + user_assigned_checkpoints
+                    
+                    processed_checkpoints = process_checkpoints(
+                        final_route, 
+                        calculated_legs, 
+                        combined_checkpoints, 
+                        turning_points
+                    )
+    
+                    # 3. Compile fuel layout
+                    total_enroute_fuel = sum(float(leg.get('fuel_req', 0)) for leg in calculated_legs)
+                    startup_fuel = 1.4
+                    calculated_cont_fuel = (cont_time / 60.0) * cont_flow
+                    calculated_res_fuel = (res_time / 60.0) * res_flow
+                    total_ramp_fuel = startup_fuel + total_enroute_fuel + calculated_cont_fuel + calculated_res_fuel
+                    
+                    starting_pfob = planned_ramp_fuel if planned_ramp_fuel > 0 else total_ramp_fuel
+    
+                    # 4. Generate PDF
+                    output_filename = generate_unique_filename(final_route)
+                    
+                    create_overlay(
+                        legs=calculated_legs,
+                        route_data=final_route,
+                        processed_checkpoints=processed_checkpoints,
+                        flight_configs=FLIGHT_PROFILES,
+                        total_ramp_fuel=total_ramp_fuel,
+                        starting_pfob=starting_pfob,
+                        output_filename=output_filename
+                    )
+    
+                    if os.path.exists(output_filename):
+                        st.success("Navlog compiled successfully!")
+                        with open(output_filename, "rb") as pdf_file:
+                            st.download_button(
+                                label="📥 Download Stamped Navlog PDF",
+                                data=pdf_file,
+                                file_name=output_filename,
+                                mime="application/pdf",
+                                use_container_width=True
+                            )
+                    else:
+                        st.error("Stamping engine execution succeeded, but output file asset was missing.")
+    
+                except Exception as e:
+                    st.error(f"Execution error inside navlog calculation script: {str(e)}")
