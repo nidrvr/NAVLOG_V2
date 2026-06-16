@@ -5,74 +5,79 @@ import os
 # Import your core engine functions
 from navlog_engine import parse_skyvector_fpl, process_flight_plan
 from pdf_stamper import create_overlay, generate_unique_filename
-from weather_api import get_forecast_altimeter  # Your HRDPS lookup library
+from weather_api import get_forecast_altimeter
 
-st.set_page_config(page_title="VFR Navlog Generator", page_icon="✈️", layout="wide")
-st.title("✈️ VFR Navlog Generator")
+st.set_page_config(page_title="Seneca VFR Navlog Generator", page_icon="✈️", layout="wide")
+st.title("✈️ Seneca VFR Navlog Generator")
 
-# Initialize session state keys to preserve data between dynamic screen re-runs
-if 'parsed_route' not in st.session_state:
-    st.session_state.parsed_route = []
+# Initialize session state keys
+if 'raw_parsed_route' not in st.session_state:
+    st.session_state.raw_parsed_route = []
 if 'raw_checkpoints' not in st.session_state:
     st.session_state.raw_checkpoints = []
 if 'altimeter_setting' not in st.session_state:
-    st.session_state.altimeter_setting = 29.92  # Default fallback standard
+    st.session_state.altimeter_setting = 29.92
 
-# Calculate default schedule: exactly 12 hours in the future (Zulu/UTC)
+# Default schedule: 12 hours in the future (Zulu)
 now_utc = datetime.datetime.now(datetime.timezone.utc)
 future_utc = now_utc + datetime.timedelta(hours=12)
 default_date = future_utc.date()
-default_time_str = future_utc.strftime("%H%M")  # Formats as 4-digit string, e.g., "0330"
+default_time_str = future_utc.strftime("%H%M")
 
 # ==========================================
-# STEP 1: FILE UPLOAD & SCHEDULE (FIRST)
+# STEP 1: FILE UPLOAD & SCHEDULE
 # ==========================================
-st.subheader("1. Flight Plan & Schedule")
+st.subheader("1. Flight Plan & Settings")
+col_file, col_perf = st.columns([2, 1])
 
-# Replaced text box with a clean drag-and-drop file uploader zone
-uploaded_file = st.file_uploader("Drop your SkyVector .fpl file here", type=["fpl"], help="Export the .fpl file from SkyVector and drop it here.")
+with col_file:
+    uploaded_file = st.file_uploader(
+        "Drop your SkyVector .fpl file here", 
+        type=["fpl"], 
+        help="Export the .fpl file from SkyVector and drop it here."
+    )
+    
+    col_time1, col_time2 = st.columns(2)
+    with col_time1:
+        dep_date = st.date_input("Departure Date (Z)", value=default_date)
+    with col_time2:
+        dep_time_z = st.text_input("Time of Departure (Z)", value=default_time_str, max_chars=4, help="4-digit Zulu time (e.g., 1430)")
 
-col_time1, col_time2 = st.columns(2)
-with col_time1:
-    dep_date = st.date_input("Departure Date (Z)", value=default_date)
-with col_time2:
-    dep_time_z = st.text_input("Time of Departure (Z)", value=default_time_str, max_chars=4, help="Enter a 4-digit Zulu time (e.g., 1430)")
+with col_perf:
+    st.markdown("**Performance & Fuel Rules**")
+    cruise_alt = st.number_input("Planned Cruise Altitude (ft)", min_value=0, value=3500, step=500, help="Required to fetch correct upper wind layers.")
+    fuel_flow = st.number_input("Fuel Flow Rate (GPH)", min_value=1.0, value=8.5, step=0.1)
+    cont_time = st.number_input("Contingency Fuel (Minutes)", min_value=0, value=10, step=5)
+    res_time = st.number_input("Reserve Fuel (Minutes)", min_value=0, value=30, step=5)
 
-# Parses flight track directly from the uploaded file data and triggers weather lookup
 if st.button("Parse File & Fetch Weather Data", type="secondary"):
     if uploaded_file is not None:
         try:
-            # 1. Save the uploaded file data to a temporary file locally
             temp_filename = "uploaded_route.fpl"
             with open(temp_filename, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
-            # 2. Pass the real filepath string to your existing engine parser
             my_route, raw_checkpoints = parse_skyvector_fpl(temp_filename)
-            st.session_state.parsed_route = my_route
+            st.session_state.raw_parsed_route = my_route
             st.session_state.raw_checkpoints = raw_checkpoints
             
-            # Extract departure fix and query HRDPS model automatically
             if my_route:
                 dep_airport = my_route[0]['id']
-                
                 try:
-                    # Convert text entries back to datetime object for the API
                     hours = int(dep_time_z[:2])
                     minutes = int(dep_time_z[2:])
                     dep_datetime = datetime.datetime.combine(dep_date, datetime.time(hours, minutes), tzinfo=datetime.timezone.utc)
                     
-                    with st.spinner(f"Querying HRDPS forecast models for {dep_airport}..."):
+                    with st.spinner(f"Querying weather models for {dep_airport}..."):
                         forecast_alt = get_forecast_altimeter(dep_airport, dep_datetime)
                         if forecast_alt:
                             st.session_state.altimeter_setting = float(forecast_alt)
-                            st.success(f"Flight plan parsed successfully! HRDPS Altimeter forecast for {dep_airport}: {forecast_alt} inHg")
+                            st.success(f"Flight plan parsed! Altimeter forecast for {dep_airport}: {forecast_alt} inHg")
                         else:
-                            st.warning("Could not isolate HRDPS forecast layer. Defaulting to standard 29.92.")
+                            st.warning("Could not isolate forecast layer. Defaulting to standard 29.92.")
                 except Exception as weather_err:
-                    st.warning(f"Weather lookup bypassed: Verify your departure time format matches HHMM. (Error: {weather_err})")
+                    st.warning(f"Weather lookup bypassed: Verify departure time format matches HHMM. ({weather_err})")
             
-            # Clean up the temporary file after a successful parse
             if os.path.exists(temp_filename):
                 os.remove(temp_filename)
 
@@ -83,13 +88,12 @@ if st.button("Parse File & Fetch Weather Data", type="secondary"):
 
 st.divider()
 
-# The remaining configurations reveal themselves dynamically only after a file is parsed
-if st.session_state.parsed_route:
+if len(st.session_state.raw_parsed_route) >= 2:
     
     # ==========================================
-    # STEP 2: FLIGHT & AIRCRAFT DETAILS
+    # STEP 2: FLIGHT DETAILS
     # ==========================================
-    st.subheader("2. Flight & Aircraft Details")
+    st.subheader("2. Pilot & Aircraft Information")
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -97,31 +101,52 @@ if st.session_state.parsed_route:
     with col2:
         aircraft_id = st.text_input("Aircraft Ident / Type", value="C172S")
     with col3:
-        # Automatically populated by the HRDPS lookup step, but fully adjustable
         altimeter = st.number_input(
             "Altimeter Setting (inHg)", 
             value=st.session_state.altimeter_setting, 
             format="%.2f", 
             step=0.01,
-            help="Pre-filled using HRDPS weather forecasts. Adjust this value manually to overrule."
+            help="Adjust this value manually to overrule weather models."
         )
 
     # ==========================================
-    # STEP 3: WAYPOINT ROLE SELECTOR
+    # STEP 3: WAYPOINT ROLE ASSIGNMENT
     # ==========================================
     st.subheader("3. Waypoint Role Assignment")
-    point_categories = {}
     
-    st.markdown("Select the structural role for each waypoint along your parsed track:")
-    for idx, point in enumerate(st.session_state.parsed_route):
+    departure_point = st.session_state.raw_parsed_route[0]
+    destination_point = st.session_state.raw_parsed_route[-1]
+    
+    st.info(f"🛫 **Departure:** {departure_point['id']} &nbsp;&nbsp;|&nbsp;&nbsp; 🛬 **Final Destination:** {destination_point['id']}")
+    st.markdown("Categorize your intermediate waypoints below:")
+    
+    turning_points = []
+    destinations = [destination_point['id']]
+    user_assigned_checkpoints = []
+    final_route = [departure_point]
+    
+    # Only iterate through points between Departure and Final Destination
+    for idx, point in enumerate(st.session_state.raw_parsed_route[1:-1], start=1):
         point_id = point.get('id', f'Point_{idx}')
-        category = st.radio(
-            f"**{point_id}**", 
-            options=["Checkpoint", "SHP / Turning Point", "Full Stop"],
+        
+        role = st.radio(
+            f"**{point_id}**",
+            options=["Enroute Checkpoint (Page 2)", "Set Heading Point (SHP)", "Intermediate Destination (Full Stop)"],
             horizontal=True,
-            key=f"cat_{idx}"
+            key=f"role_assign_{idx}"
         )
-        point_categories[point_id] = category
+        
+        if role == "Set Heading Point (SHP)":
+            turning_points.append(point_id)
+            final_route.append(point)
+        elif role == "Intermediate Destination (Full Stop)":
+            destinations.append(point_id)
+            final_route.append(point)
+        else:
+            # Catch bypassed points so they successfully render as checkpoints on Page 2
+            user_assigned_checkpoints.append(point)
+            
+    final_route.append(destination_point)
 
     st.divider()
 
@@ -129,13 +154,14 @@ if st.session_state.parsed_route:
     # STEP 4: GENERATION
     # ==========================================
     st.subheader("4. Compile Flight Log")
-    planned_ramp_fuel = st.number_input("Planned Ramp Fuel (Gallons)", min_value=0.0, value=0.0, step=1.0, help="Leave as 0 to calculate minimum legally required fuel layout.")
+    planned_ramp_fuel = st.number_input("Planned Ramp Fuel (Gallons)", min_value=0.0, value=0.0, step=1.0, help="Leave as 0 to calculate minimum required.")
 
     if st.button("Generate Official Navlog PDF", type="primary", use_container_width=True):
-        with st.spinner("Processing leg logs and drawing PDF layers..."):
+        with st.spinner("Processing performance math models and stamping PDF..."):
             try:
-                turning_points = [pid for pid, cat in point_categories.items() if cat == "SHP / Turning Point"]
-                destinations = [pid for pid, cat in point_categories.items() if cat == "Destination (Full Stop)"]
+                # Apply the requested altitude to all major legs so weather API fires properly
+                for point in final_route:
+                    point['altitude'] = cruise_alt
                 
                 FLIGHT_PROFILES = {
                     "FLIGHT_DATE": dep_date.strftime("%Y-%m-%d"),
@@ -146,41 +172,47 @@ if st.session_state.parsed_route:
                     "TURNING_POINTS": turning_points,
                     "DESTINATIONS": destinations,
                     "FUEL_RESERVES": {
-                        "cont_min": 10, 
-                        "cont_gph": 8.5, 
+                        "cont_min": cont_time, 
+                        "cont_gph": fuel_flow, 
                         "omit_reserve": False,
                         "planned_ramp_fuel": planned_ramp_fuel if planned_ramp_fuel > 0 else ""
                     },
-                    "FINAL_ROUTE": st.session_state.parsed_route
+                    "FINAL_ROUTE": final_route
                 }
 
-                # 1. Execute performance calculations
-                calculated_legs = process_flight_plan(st.session_state.parsed_route, leg_configs=FLIGHT_PROFILES)
+                # 1. Execute performance math on major legs
+                calculated_legs = process_flight_plan(final_route, leg_configs=FLIGHT_PROFILES)
                 
-                # 2. Append chronological checkpoints
+                # Apply fuel flow settings dynamically
+                for leg in calculated_legs:
+                    leg['gph'] = fuel_flow
+                
+                # 2. Append all checkpoints (both from SkyVector and UI bypasses)
                 from checkpoint_math import process_checkpoints
+                combined_checkpoints = st.session_state.raw_checkpoints + user_assigned_checkpoints
+                
                 processed_checkpoints = process_checkpoints(
-                    st.session_state.parsed_route, 
+                    final_route, 
                     calculated_legs, 
-                    st.session_state.raw_checkpoints, 
+                    combined_checkpoints, 
                     turning_points
                 )
 
-                # 3. Compile fuel layout data
+                # 3. Compile fuel layout
                 total_enroute_fuel = sum(float(leg.get('fuel_req', 0)) for leg in calculated_legs)
                 startup_fuel = 1.4
-                cont_fuel = (10 / 60.0) * 8.5
-                res_fuel = (30 / 60.0) * 8.5
-                total_ramp_fuel = startup_fuel + total_enroute_fuel + cont_fuel + res_fuel
+                calculated_cont_fuel = (cont_time / 60.0) * fuel_flow
+                calculated_res_fuel = (res_time / 60.0) * fuel_flow
+                total_ramp_fuel = startup_fuel + total_enroute_fuel + calculated_cont_fuel + calculated_res_fuel
                 
                 starting_pfob = planned_ramp_fuel if planned_ramp_fuel > 0 else total_ramp_fuel
 
-                # 4. Generate unique name and draw PDF layout layers
-                output_filename = generate_unique_filename(st.session_state.parsed_route)
+                # 4. Generate PDF
+                output_filename = generate_unique_filename(final_route)
                 
                 create_overlay(
                     legs=calculated_legs,
-                    route_data=st.session_state.parsed_route,
+                    route_data=final_route,
                     processed_checkpoints=processed_checkpoints,
                     flight_configs=FLIGHT_PROFILES,
                     total_ramp_fuel=total_ramp_fuel,
@@ -199,7 +231,7 @@ if st.session_state.parsed_route:
                             use_container_width=True
                         )
                 else:
-                    st.error("Stamping engine complete, but the output file asset could not be verified.")
+                    st.error("Stamping engine execution succeeded, but output file asset was missing.")
 
             except Exception as e:
-                st.error(f"Execution error inside navlog script: {str(e)}")
+                st.error(f"Execution error inside navlog calculation script: {str(e)}")
