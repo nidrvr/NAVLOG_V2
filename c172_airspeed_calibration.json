@@ -1,0 +1,39 @@
+{
+  "airspeed_calibration_normal_static": {
+    "flaps_up": [
+      {"KIAS": 50, "KCAS": 56},
+      {"KIAS": 60, "KCAS": 62},
+      {"KIAS": 70, "KCAS": 70},
+      {"KIAS": 80, "KCAS": 78},
+      {"KIAS": 90, "KCAS": 87},
+      {"KIAS": 100, "KCAS": 97},
+      {"KIAS": 110, "KCAS": 107},
+      {"KIAS": 120, "KCAS": 117},
+      {"KIAS": 130, "KCAS": 127},
+      {"KIAS": 140, "KCAS": 137},
+      {"KIAS": 150, "KCAS": 147},
+      {"KIAS": 160, "KCAS": 157}
+    ],
+    "flaps_10": [
+      {"KIAS": 40, "KCAS": 51},
+      {"KIAS": 50, "KCAS": 57},
+      {"KIAS": 60, "KCAS": 63},
+      {"KIAS": 70, "KCAS": 71},
+      {"KIAS": 80, "KCAS": 80},
+      {"KIAS": 90, "KCAS": 89},
+      {"KIAS": 100, "KCAS": 99},
+      {"KIAS": 110, "KCAS": 109}
+    ],
+    "flaps_full": [
+      {"KIAS": 40, "KCAS": 50},
+      {"KIAS": 50, "KCAS": 56},
+      {"KIAS": 60, "KCAS": 63},
+      {"KIAS": 70, "KCAS": 72},
+      {"KIAS": 80, "KCAS": 81},
+      {"KIAS": 85, "KCAS": 86}
+    ]
+  },
+  "conditions": {
+    "power": "Power required for level flight or maximum power descent."
+  }
+}

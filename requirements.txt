@@ -1,0 +1,6 @@
+geopy
+airportsdata
+geomag
+PyPDF2
+reportlab
+requests

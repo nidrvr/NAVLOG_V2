@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<flight-plan xmlns="http://www8.garmin.com/xmlschemas/FlightPlan/v1">
+  <created>2026-06-11T20:45:05Z</created>
+  <waypoint-table>
+    <waypoint>
+      <identifier>CYPQ</identifier>
+      <type>AIRPORT</type>
+      <country-code>CY</country-code>
+      <lat>44.230539</lat>
+      <lon>-78.363197</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>Omemee</identifier>
+      <type>USER WAYPOINT</type>
+      <country-code />
+      <lat>44.309478</lat>
+      <lon>-78.551731</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>Fenelon Falls</identifier>
+      <type>USER WAYPOINT</type>
+      <country-code />
+      <lat>44.524294</lat>
+      <lon>-78.730946</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>Head Lake</identifier>
+      <type>USER WAYPOINT</type>
+      <country-code />
+      <lat>44.738320</lat>
+      <lon>-78.913250</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>CYQA</identifier>
+      <type>AIRPORT</type>
+      <country-code>CY</country-code>
+      <lat>44.975075</lat>
+      <lon>-79.303764</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>Washago</identifier>
+      <type>USER WAYPOINT</type>
+      <country-code />
+      <lat>44.750756</lat>
+      <lon>-79.335537</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>Thorah Lake</identifier>
+      <type>USER WAYPOINT</type>
+      <country-code />
+      <lat>44.448812</lat>
+      <lon>-79.228935</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>Port Perry</identifier>
+      <type>USER WAYPOINT</type>
+      <country-code />
+      <lat>44.099254</lat>
+      <lon>-78.943119</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>CYOO</identifier>
+      <type>AIRPORT</type>
+      <country-code>CY</country-code>
+      <lat>43.922828</lat>
+      <lon>-78.896308</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>Bowmanville</identifier>
+      <type>USER WAYPOINT</type>
+      <country-code />
+      <lat>43.909395</lat>
+      <lon>-78.679447</lon>
+      <comment />
+    </waypoint>
+    <waypoint>
+      <identifier>CYPQ</identifier>
+      <type>AIRPORT</type>
+      <country-code>CY</country-code>
+      <lat>44.230539</lat>
+      <lon>-78.363197</lon>
+      <comment />
+    </waypoint>
+  </waypoint-table>
+  <route>
+    <route-name>CYPQ CYPQ</route-name>
+    <flight-plan-index>1</flight-plan-index>
+    <route-point>
+      <waypoint-identifier>CYPQ</waypoint-identifier>
+      <waypoint-type>AIRPORT</waypoint-type>
+      <waypoint-country-code>CY</waypoint-country-code>
+    </route-point>
+    <route-point>
+      <waypoint-identifier>Omemee</waypoint-identifier>
+      <waypoint-type>USER WAYPOINT</waypoint-type>
+      <waypoint-country-code />
+    </route-point>
+    <route-point>
+      <waypoint-identifier>Fenelon Falls</waypoint-identifier>
+      <waypoint-type>USER WAYPOINT</waypoint-type>
+      <waypoint-country-code />
+    </route-point>
+    <route-point>
+      <waypoint-identifier>Head Lake</waypoint-identifier>
+      <waypoint-type>USER WAYPOINT</waypoint-type>
+      <waypoint-country-code />
+    </route-point>
+    <route-point>
+      <waypoint-identifier>CYQA</waypoint-identifier>
+      <waypoint-type>AIRPORT</waypoint-type>
+      <waypoint-country-code>CY</waypoint-country-code>
+    </route-point>
+    <route-point>
+      <waypoint-identifier>Washago</waypoint-identifier>
+      <waypoint-type>USER WAYPOINT</waypoint-type>
+      <waypoint-country-code />
+    </route-point>
+    <route-point>
+      <waypoint-identifier>Thorah Lake</waypoint-identifier>
+      <waypoint-type>USER WAYPOINT</waypoint-type>
+      <waypoint-country-code />
+    </route-point>
+    <route-point>
+      <waypoint-identifier>Port Perry</waypoint-identifier>
+      <waypoint-type>USER WAYPOINT</waypoint-type>
+      <waypoint-country-code />
+    </route-point>
+    <route-point>
+      <waypoint-identifier>CYOO</waypoint-identifier>
+      <waypoint-type>AIRPORT</waypoint-type>
+      <waypoint-country-code>CY</waypoint-country-code>
+    </route-point>
+    <route-point>
+      <waypoint-identifier>Bowmanville</waypoint-identifier>
+      <waypoint-type>USER WAYPOINT</waypoint-type>
+      <waypoint-country-code />
+    </route-point>
+    <route-point>
+      <waypoint-identifier>CYPQ</waypoint-identifier>
+      <waypoint-type>AIRPORT</waypoint-type>
+      <waypoint-country-code>CY</waypoint-country-code>
+    </route-point>
+  </route>
+</flight-plan>

@@ -1,0 +1,23 @@
+{
+  "climb_performance": {
+    "0": {"KIAS": 74, "FPM": 730, "MIN": 0, "GAL": 0.0, "NM": 0},
+    "1000": {"KIAS": 73, "FPM": 695, "MIN": 1, "GAL": 0.4, "NM": 2},
+    "2000": {"KIAS": 73, "FPM": 655, "MIN": 3, "GAL": 0.8, "NM": 4},
+    "3000": {"KIAS": 73, "FPM": 620, "MIN": 4, "GAL": 1.2, "NM": 6},
+    "4000": {"KIAS": 73, "FPM": 600, "MIN": 6, "GAL": 1.5, "NM": 8},
+    "5000": {"KIAS": 73, "FPM": 550, "MIN": 8, "GAL": 1.9, "NM": 10},
+    "6000": {"KIAS": 73, "FPM": 505, "MIN": 10, "GAL": 2.2, "NM": 13},
+    "7000": {"KIAS": 73, "FPM": 455, "MIN": 12, "GAL": 2.6, "NM": 16},
+    "8000": {"KIAS": 72, "FPM": 410, "MIN": 14, "GAL": 3.0, "NM": 19},
+    "9000": {"KIAS": 72, "FPM": 360, "MIN": 17, "GAL": 3.4, "NM": 22},
+    "10000": {"KIAS": 72, "FPM": 315, "MIN": 20, "GAL": 3.9, "NM": 27},
+    "11000": {"KIAS": 72, "FPM": 265, "MIN": 24, "GAL": 4.4, "NM": 32},
+    "12000": {"KIAS": 72, "FPM": 220, "MIN": 28, "GAL": 5.0, "NM": 38}
+  },
+  "constants_and_adjustments": {
+    "startup_taxi_takeoff_gal": 1.4,
+    "temp_adjustment_percentage": 0.10,
+    "temp_adjustment_threshold_c": 10,
+    "notes": "Increase time, fuel, and distance by 10% for each 10 degrees C above standard temperature."
+  }
+}
