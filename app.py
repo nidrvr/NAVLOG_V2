@@ -211,7 +211,7 @@ st.divider()
     # ==========================================
     # STEP 5: GENERATION
     # ==========================================
-    st.subheader("5. Fuel Reserves & Compile Flight Log")
+st.subheader("5. Fuel Reserves & Compile Flight Log")
 
 col1, col2, col3 = st.columns(3)
 
