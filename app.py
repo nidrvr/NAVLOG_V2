@@ -100,9 +100,9 @@ if len(st.session_state.raw_parsed_route) >= 2:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-    pilot_name = st.text_input("Pilot Name", placeholder="e.g., J. Doe")
-    aircraft_id = st.text_input("Aircraft Ident / Type", value="", placeholder="C-FESC")
-    altimeter = st.number_input("Altimeter Setting (inHg)", value=st.session_state.altimeter_setting, format="%.2f", step=0.01)
+        pilot_name = st.text_input("Pilot Name", placeholder="e.g., J. Doe")
+        aircraft_id = st.text_input("Aircraft Ident / Type", value="", placeholder="C-FESC")
+        altimeter = st.number_input("Altimeter Setting (inHg)", value=st.session_state.altimeter_setting, format="%.2f", step=0.01)
         
     with col2:
         st.markdown("**Contingency Rules**")
