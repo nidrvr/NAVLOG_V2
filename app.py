@@ -27,8 +27,8 @@ default_time_str = future_utc.strftime("%H%M")
 # ==========================================
 # STEP 1: FILE UPLOAD & SCHEDULE
 # ==========================================
-st.subheader("1. Flight Plan & Settings")
-col_file, col_perf = st.columns([2, 1])
+st.subheader("1. Flight Plan & Schedule")
+col_file, col_time = st.columns([2, 1])
 
 with col_file:
     uploaded_file = st.file_uploader(
@@ -37,18 +37,9 @@ with col_file:
         help="Export the .fpl file from SkyVector and drop it here."
     )
     
-    col_time1, col_time2 = st.columns(2)
-    with col_time1:
-        dep_date = st.date_input("Departure Date (Z)", value=default_date)
-    with col_time2:
-        dep_time_z = st.text_input("Time of Departure (Z)", value=default_time_str, max_chars=4, help="4-digit Zulu time (e.g., 1430)")
-
-with col_perf:
-    st.markdown("**Performance & Fuel Rules**")
-    cruise_alt = st.number_input("Planned Cruise Altitude (ft)", min_value=0, value=3500, step=500, help="Required to fetch correct upper wind layers.")
-    fuel_flow = st.number_input("Fuel Flow Rate (GPH)", min_value=1.0, value=8.5, step=0.1)
-    cont_time = st.number_input("Contingency Fuel (Minutes)", min_value=0, value=10, step=5)
-    res_time = st.number_input("Reserve Fuel (Minutes)", min_value=0, value=30, step=5)
+with col_time:
+    dep_date = st.date_input("Departure Date (Z)", value=default_date)
+    dep_time_z = st.text_input("Time of Departure (Z)", value=default_time_str, max_chars=4, help="4-digit Zulu time (e.g., 1430)")
 
 if st.button("Parse File & Fetch Weather Data", type="secondary"):
     if uploaded_file is not None:
@@ -91,41 +82,44 @@ st.divider()
 if len(st.session_state.raw_parsed_route) >= 2:
     
     # ==========================================
-    # STEP 2: FLIGHT DETAILS
+    # STEP 2: FLIGHT DETAILS & FUEL RESERVES
     # ==========================================
-    st.subheader("2. Pilot & Aircraft Information")
+    st.subheader("2. Aircraft & Fuel Policies")
     col1, col2, col3 = st.columns(3)
     
     with col1:
         pilot_name = st.text_input("Pilot Name", placeholder="e.g., J. Doe")
-    with col2:
         aircraft_id = st.text_input("Aircraft Ident / Type", value="C172S")
+        altimeter = st.number_input("Altimeter Setting (inHg)", value=st.session_state.altimeter_setting, format="%.2f", step=0.01)
+        
+    with col2:
+        st.markdown("**Contingency Rules**")
+        cont_time = st.number_input("Contingency Fuel (Minutes)", min_value=0, value=10, step=5)
+        cont_flow = st.number_input("Contingency Burn Rate (GPH)", min_value=1.0, value=8.5, step=0.1)
+        
     with col3:
-        altimeter = st.number_input(
-            "Altimeter Setting (inHg)", 
-            value=st.session_state.altimeter_setting, 
-            format="%.2f", 
-            step=0.01,
-            help="Adjust this value manually to overrule weather models."
-        )
+        st.markdown("**Reserve Rules**")
+        res_time = st.number_input("Reserve Fuel (Minutes)", min_value=0, value=30, step=5)
+        res_flow = st.number_input("Reserve Burn Rate (GPH)", min_value=1.0, value=8.5, step=0.1)
+
+    st.divider()
 
     # ==========================================
     # STEP 3: WAYPOINT ROLE ASSIGNMENT
     # ==========================================
-    st.subheader("3. Waypoint Role Assignment")
+    st.subheader("3. Waypoint Roles")
     
     departure_point = st.session_state.raw_parsed_route[0]
     destination_point = st.session_state.raw_parsed_route[-1]
     
     st.info(f"🛫 **Departure:** {departure_point['id']} &nbsp;&nbsp;|&nbsp;&nbsp; 🛬 **Final Destination:** {destination_point['id']}")
-    st.markdown("Categorize your intermediate waypoints below:")
     
     turning_points = []
     destinations = [destination_point['id']]
     user_assigned_checkpoints = []
     final_route = [departure_point]
     
-    # Only iterate through points between Departure and Final Destination
+    # Categorize intermediate waypoints to build the major route
     for idx, point in enumerate(st.session_state.raw_parsed_route[1:-1], start=1):
         point_id = point.get('id', f'Point_{idx}')
         
@@ -143,7 +137,6 @@ if len(st.session_state.raw_parsed_route) >= 2:
             destinations.append(point_id)
             final_route.append(point)
         else:
-            # Catch bypassed points so they successfully render as checkpoints on Page 2
             user_assigned_checkpoints.append(point)
             
     final_route.append(destination_point)
@@ -151,18 +144,45 @@ if len(st.session_state.raw_parsed_route) >= 2:
     st.divider()
 
     # ==========================================
-    # STEP 4: GENERATION
+    # STEP 4: LEG-BY-LEG CONFIGURATIONS
     # ==========================================
-    st.subheader("4. Compile Flight Log")
-    planned_ramp_fuel = st.number_input("Planned Ramp Fuel (Gallons)", min_value=0.0, value=0.0, step=1.0, help="Leave as 0 to calculate minimum required.")
+    st.subheader("4. Leg Configurations (Altitude & RPM)")
+    st.markdown("Set the planned altitude and power setting for each segment of your route.")
+    
+    leg_configs = {}
+    
+    # Iterate through every major leg in the final route
+    for i in range(len(final_route) - 1):
+        from_pt = final_route[i]['id']
+        to_pt = final_route[i+1]['id']
+        
+        st.markdown(f"**Leg: {from_pt} ➔ {to_pt}**")
+        col_alt, col_rpm = st.columns(2)
+        
+        with col_alt:
+            alt_val = st.number_input(f"Altitude (ft)", min_value=0, value=3500, step=500, key=f"alt_{i}")
+        with col_rpm:
+            rpm_val = st.number_input(f"RPM Setting", min_value=1000, value=2300, step=50, key=f"rpm_{i}")
+            
+        # Store for the engine dict
+        leg_configs[to_pt] = {"altitude": alt_val, "rpm": rpm_val}
+        
+        # Inject directly into the route dictionaries so process_flight_plan can find it
+        final_route[i+1]['altitude'] = alt_val
+        final_route[i+1]['rpm'] = rpm_val
+
+    st.divider()
+
+    # ==========================================
+    # STEP 5: GENERATION
+    # ==========================================
+    st.subheader("5. Compile Flight Log")
+    planned_ramp_fuel = st.number_input("Planned Ramp Fuel (Gallons)", min_value=0.0, value=0.0, step=1.0, help="Leave as 0 to calculate minimum legally required fuel layout.")
 
     if st.button("Generate Official Navlog PDF", type="primary", use_container_width=True):
         with st.spinner("Processing performance math models and stamping PDF..."):
             try:
-                # Apply the requested altitude to all major legs so weather API fires properly
-                for point in final_route:
-                    point['altitude'] = cruise_alt
-                
+                # Build the central profile dictionary exactly how the terminal script used to
                 FLIGHT_PROFILES = {
                     "FLIGHT_DATE": dep_date.strftime("%Y-%m-%d"),
                     "FLIGHT_TIME": dep_time_z,
@@ -173,25 +193,25 @@ if len(st.session_state.raw_parsed_route) >= 2:
                     "DESTINATIONS": destinations,
                     "FUEL_RESERVES": {
                         "cont_min": cont_time, 
-                        "cont_gph": fuel_flow, 
+                        "cont_gph": cont_flow, 
                         "omit_reserve": False,
                         "planned_ramp_fuel": planned_ramp_fuel if planned_ramp_fuel > 0 else ""
                     },
                     "FINAL_ROUTE": final_route
                 }
+                
+                # Merge the leg-specific configs into the main dictionary for engine compatibility
+                for to_id, config in leg_configs.items():
+                    FLIGHT_PROFILES[to_id] = config
 
                 # 1. Execute performance math on major legs
                 calculated_legs = process_flight_plan(final_route, leg_configs=FLIGHT_PROFILES)
                 
-                # Apply fuel flow settings dynamically
-                for leg in calculated_legs:
-                    leg['gph'] = fuel_flow
-                
-                # 2. Append all checkpoints (both from SkyVector and UI bypasses)
+                # 2. Append all checkpoints
                 from checkpoint_math import process_checkpoints
                 combined_checkpoints = st.session_state.raw_checkpoints + user_assigned_checkpoints
                 
-                processed_checkpoints = process_checkpoints(
+                processed_checkpoints = process_process_checkpoints(
                     final_route, 
                     calculated_legs, 
                     combined_checkpoints, 
@@ -201,8 +221,8 @@ if len(st.session_state.raw_parsed_route) >= 2:
                 # 3. Compile fuel layout
                 total_enroute_fuel = sum(float(leg.get('fuel_req', 0)) for leg in calculated_legs)
                 startup_fuel = 1.4
-                calculated_cont_fuel = (cont_time / 60.0) * fuel_flow
-                calculated_res_fuel = (res_time / 60.0) * fuel_flow
+                calculated_cont_fuel = (cont_time / 60.0) * cont_flow
+                calculated_res_fuel = (res_time / 60.0) * res_flow
                 total_ramp_fuel = startup_fuel + total_enroute_fuel + calculated_cont_fuel + calculated_res_fuel
                 
                 starting_pfob = planned_ramp_fuel if planned_ramp_fuel > 0 else total_ramp_fuel
