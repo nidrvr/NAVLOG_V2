@@ -105,14 +105,12 @@ if len(st.session_state.raw_parsed_route) >= 2:
         altimeter = st.number_input("Altimeter Setting (inHg)", value=st.session_state.altimeter_setting, format="%.2f", step=0.01)
         
     with col2:
-        st.markdown("**Contingency Rules**")
-        cont_time = st.number_input("Contingency Fuel (Minutes)", min_value=0, value=10, step=5)
-        cont_flow = st.number_input("Contingency Burn Rate (GPH)", min_value=1.0, value=8.5, step=0.1)
+        # Intentionally left blank or you can use this space for future inputs
+        pass
         
     with col3:
-        st.markdown("**Reserve Rules**")
-        res_time = st.number_input("Reserve Fuel (Minutes)", min_value=0, value=30, step=5)
-        res_flow = st.number_input("Reserve Burn Rate (GPH)", min_value=1.0, value=8.5, step=0.1)
+        # Intentionally left blank or you can use this space for future inputs
+        pass
 
     st.divider()
 
