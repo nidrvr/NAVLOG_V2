@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import os
+import json
 
 # Import your core engine functions
 from navlog_engine import parse_skyvector_fpl, process_flight_plan
@@ -17,6 +18,17 @@ if 'raw_checkpoints' not in st.session_state:
     st.session_state.raw_checkpoints = []
 if 'altimeter_setting' not in st.session_state:
     st.session_state.altimeter_setting = 29.92
+
+# Safely load the POH data for the UI to read
+try:
+    with open('c172_poh.json', 'r') as f:
+        POH_DATA = json.load(f)
+        # Extract integer altitudes and sort them for the dropdown
+        VALID_ALTITUDES = sorted([int(k) for k in POH_DATA.keys()])
+except Exception as e:
+    st.error(f"Could not load c172_poh.json: {e}")
+    POH_DATA = {}
+    VALID_ALTITUDES = [2000, 4000, 6000, 8000, 10000, 12000]
 
 # Default schedule: 12 hours in the future (Zulu)
 now_utc = datetime.datetime.now(datetime.timezone.utc)
@@ -119,7 +131,6 @@ if len(st.session_state.raw_parsed_route) >= 2:
     user_assigned_checkpoints = []
     final_route = [departure_point]
     
-    # Categorize intermediate waypoints to build the major route
     for idx, point in enumerate(st.session_state.raw_parsed_route[1:-1], start=1):
         point_id = point.get('id', f'Point_{idx}')
         
@@ -147,7 +158,7 @@ if len(st.session_state.raw_parsed_route) >= 2:
     # STEP 4: LEG-BY-LEG CONFIGURATIONS
     # ==========================================
     st.subheader("4. Leg Configurations (Altitude & RPM)")
-    st.markdown("Set the planned altitude and power setting for each segment of your route.")
+    st.markdown("Select an altitude to view the available performance profiles from the POH.")
     
     leg_configs = {}
     
@@ -157,17 +168,38 @@ if len(st.session_state.raw_parsed_route) >= 2:
         to_pt = final_route[i+1]['id']
         
         st.markdown(f"**Leg: {from_pt} ➔ {to_pt}**")
-        col_alt, col_rpm = st.columns(2)
+        col_alt, col_rpm, col_bhp = st.columns([2, 2, 1])
         
         with col_alt:
-            alt_val = st.number_input(f"Altitude (ft)", min_value=0, value=3500, step=500, key=f"alt_{i}")
-        with col_rpm:
-            rpm_val = st.number_input(f"RPM Setting", min_value=1000, value=2300, step=50, key=f"rpm_{i}")
+            alt_val = st.selectbox(f"Altitude (ft)", options=VALID_ALTITUDES, index=0, key=f"alt_{i}")
             
-        # Store for the engine dict
-        leg_configs[to_pt] = {"altitude": alt_val, "rpm": rpm_val}
+        alt_str = str(alt_val)
         
-        # Inject directly into the route dictionaries so process_flight_plan can find it
+        # Dynamically pull valid RPMs for this altitude from the JSON (Defaulting to ISA day table for UI population)
+        if alt_str in POH_DATA and "ISA" in POH_DATA[alt_str]:
+            valid_rpms = sorted([int(rpm) for rpm in POH_DATA[alt_str]["ISA"].keys()], reverse=True)
+        else:
+            valid_rpms = [2650, 2600, 2550, 2500, 2400, 2300, 2200, 2100]
+
+        with col_rpm:
+            rpm_val = st.selectbox(f"RPM Setting", options=valid_rpms, key=f"rpm_{i}")
+            
+        with col_bhp:
+            # Extract the BHP/MCP percentage for info purposes
+            rpm_str = str(rpm_val)
+            bhp = "N/A"
+            if alt_str in POH_DATA and "ISA" in POH_DATA[alt_str]:
+                bhp_data = POH_DATA[alt_str]["ISA"].get(rpm_str, {})
+                bhp = bhp_data.get("MCP", "N/A")
+            
+            # Vertical alignment hack to match the height of the selectboxes
+            st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
+            st.write(f"**BHP: {bhp}%**")
+            
+        # Store for the engine dict (Convert altitude to string to prevent KeyError in backend dictionary lookups)
+        leg_configs[to_pt] = {"altitude": alt_str, "rpm": rpm_str}
+        
+        # Inject directly into the route dictionaries
         final_route[i+1]['altitude'] = alt_val
         final_route[i+1]['rpm'] = rpm_val
 
@@ -182,7 +214,6 @@ if len(st.session_state.raw_parsed_route) >= 2:
     if st.button("Generate Official Navlog PDF", type="primary", use_container_width=True):
         with st.spinner("Processing performance math models and stamping PDF..."):
             try:
-                # Build the central profile dictionary exactly how the terminal script used to
                 FLIGHT_PROFILES = {
                     "FLIGHT_DATE": dep_date.strftime("%Y-%m-%d"),
                     "FLIGHT_TIME": dep_time_z,
@@ -211,7 +242,7 @@ if len(st.session_state.raw_parsed_route) >= 2:
                 from checkpoint_math import process_checkpoints
                 combined_checkpoints = st.session_state.raw_checkpoints + user_assigned_checkpoints
                 
-                processed_checkpoints = process_process_checkpoints(
+                processed_checkpoints = process_checkpoints(
                     final_route, 
                     calculated_legs, 
                     combined_checkpoints, 
