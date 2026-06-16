@@ -117,7 +117,7 @@ if st.session_state.parsed_route:
         point_id = point.get('id', f'Point_{idx}')
         category = st.radio(
             f"**{point_id}**", 
-            options=["Checkpoint", "SHP / Turning Point", "Destination (Full Stop)"],
+            options=["Checkpoint", "SHP / Turning Point", "Full Stop"],
             horizontal=True,
             key=f"cat_{idx}"
         )
