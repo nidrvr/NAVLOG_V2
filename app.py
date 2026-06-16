@@ -25,28 +25,32 @@ default_date = future_utc.date()
 default_time_str = future_utc.strftime("%H%M")  # Formats as 4-digit string, e.g., "0330"
 
 # ==========================================
-# STEP 1: ROUTE & SCHEDULE (FIRST)
+# STEP 1: FILE UPLOAD & SCHEDULE (FIRST)
 # ==========================================
-st.subheader("1. Route & Schedule")
-route_string = st.text_area("Paste SkyVector Route String", placeholder="e.g., CYPQ OM_FIX CYQA", help="Paste the text from your SkyVector FPL.")
+st.subheader("1. Flight Plan & Schedule")
+
+# Replaced text box with a clean drag-and-drop file uploader zone
+uploaded_file = st.file_uploader("Drop your SkyVector .fpl file here", type=["fpl"], help="Export the .fpl file from SkyVector and drop it here.")
 
 col_time1, col_time2 = st.columns(2)
 with col_time1:
     dep_date = st.date_input("Departure Date (Z)", value=default_date)
 with col_time2:
-    # 4-digit manual text entry box replacing the time slider/picker
     dep_time_z = st.text_input("Time of Departure (Z)", value=default_time_str, max_chars=4, help="Enter a 4-digit Zulu time (e.g., 1430)")
 
-# Combined button: parses flight track and queries weather models simultaneously
-if st.button("Parse Route & Fetch Weather Data", type="secondary"):
-    if route_string:
+# Parses flight track directly from the uploaded file data and triggers weather lookup
+if st.button("Parse File & Fetch Weather Data", type="secondary"):
+    if uploaded_file is not None:
         try:
-            # 1. Parse route string
-            my_route, raw_checkpoints = parse_skyvector_fpl(route_string)
+            # Read the raw XML/text content directly from the uploaded file asset
+            fpl_content = uploaded_file.getvalue().decode("utf-8")
+            
+            # Pass the file content text directly to your existing parser
+            my_route, raw_checkpoints = parse_skyvector_fpl(fpl_content)
             st.session_state.parsed_route = my_route
             st.session_state.raw_checkpoints = raw_checkpoints
             
-            # 2. Extract departure fix and query HRDPS model automatically
+            # Extract departure fix and query HRDPS model automatically
             if my_route:
                 dep_airport = my_route[0]['id']
                 
@@ -60,24 +64,24 @@ if st.button("Parse Route & Fetch Weather Data", type="secondary"):
                         forecast_alt = get_forecast_altimeter(dep_airport, dep_datetime)
                         if forecast_alt:
                             st.session_state.altimeter_setting = float(forecast_alt)
-                            st.success(f"Route parsed! HRDPS Altimeter forecast for {dep_airport}: {forecast_alt} inHg")
+                            st.success(f"Flight plan parsed successfully! HRDPS Altimeter forecast for {dep_airport}: {forecast_alt} inHg")
                         else:
                             st.warning("Could not isolate HRDPS forecast layer. Defaulting to standard 29.92.")
                 except Exception as weather_err:
                     st.warning(f"Weather lookup bypassed: Verify your departure time format matches HHMM. (Error: {weather_err})")
             
         except Exception as e:
-            st.error(f"Error parsing route: {e}")
+            st.error(f"Error parsing .fpl file: {e}")
     else:
-        st.warning("Please paste a route string first.")
+        st.warning("Please upload a .fpl file first.")
 
 st.divider()
 
-# The remaining sections reveal themselves dynamically only after a track is loaded
+# The remaining configurations reveal themselves dynamically only after a file is parsed
 if st.session_state.parsed_route:
     
     # ==========================================
-    # STEP 2: FLIGHT & AIRCRAFT DETAILS (WITH OVERRIDE)
+    # STEP 2: FLIGHT & AIRCRAFT DETAILS
     # ==========================================
     st.subheader("2. Flight & Aircraft Details")
     col1, col2, col3 = st.columns(3)
@@ -87,13 +91,13 @@ if st.session_state.parsed_route:
     with col2:
         aircraft_id = st.text_input("Aircraft Ident / Type", value="C172S")
     with col3:
-        # Dynamically pulls the fetched weather data, but allows full manual overrule
+        # Automatically populated by the HRDPS lookup step, but fully adjustable
         altimeter = st.number_input(
             "Altimeter Setting (inHg)", 
             value=st.session_state.altimeter_setting, 
             format="%.2f", 
             step=0.01,
-            help="Pre-filled using HRDPS weather forecasts. Change this value manually to overrule."
+            help="Pre-filled using HRDPS weather forecasts. Adjust this value manually to overrule."
         )
 
     # ==========================================
@@ -132,7 +136,7 @@ if st.session_state.parsed_route:
                     "FLIGHT_TIME": dep_time_z,
                     "PILOT_NAME": pilot_name,
                     "AIRCRAFT_ID": aircraft_id,
-                    "ALTIMETER": altimeter,  # Submits the chosen value (forecasted or overridden)
+                    "ALTIMETER": altimeter,
                     "TURNING_POINTS": turning_points,
                     "DESTINATIONS": destinations,
                     "FUEL_RESERVES": {
@@ -144,10 +148,10 @@ if st.session_state.parsed_route:
                     "FINAL_ROUTE": st.session_state.parsed_route
                 }
 
-                # 1. Execute performance tables and ground speed variations
+                # 1. Execute performance calculations
                 calculated_legs = process_flight_plan(st.session_state.parsed_route, leg_configs=FLIGHT_PROFILES)
                 
-                # 2. Append chronological fixes
+                # 2. Append chronological checkpoints
                 from checkpoint_math import process_checkpoints
                 processed_checkpoints = process_checkpoints(
                     st.session_state.parsed_route, 
@@ -156,7 +160,7 @@ if st.session_state.parsed_route:
                     turning_points
                 )
 
-                # 3. Compile fuel baselines for the canvas overlay
+                # 3. Compile fuel layout data
                 total_enroute_fuel = sum(float(leg.get('fuel_req', 0)) for leg in calculated_legs)
                 startup_fuel = 1.4
                 cont_fuel = (10 / 60.0) * 8.5
@@ -165,7 +169,7 @@ if st.session_state.parsed_route:
                 
                 starting_pfob = planned_ramp_fuel if planned_ramp_fuel > 0 else total_ramp_fuel
 
-                # 4. Bind elements to physical Seneca form layout
+                # 4. Generate unique name and draw PDF layout layers
                 output_filename = generate_unique_filename(st.session_state.parsed_route)
                 
                 create_overlay(
@@ -189,7 +193,7 @@ if st.session_state.parsed_route:
                             use_container_width=True
                         )
                 else:
-                    st.error("Stamping engine complete, but the combined PDF layer asset was not generated.")
+                    st.error("Stamping engine complete, but the output file asset could not be verified.")
 
             except Exception as e:
                 st.error(f"Execution error inside navlog script: {str(e)}")
