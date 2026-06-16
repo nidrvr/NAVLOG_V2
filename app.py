@@ -42,11 +42,13 @@ with col_time2:
 if st.button("Parse File & Fetch Weather Data", type="secondary"):
     if uploaded_file is not None:
         try:
-            # Read the raw XML/text content directly from the uploaded file asset
-            fpl_content = uploaded_file.getvalue().decode("utf-8")
+            # 1. Save the uploaded file data to a temporary file locally
+            temp_filename = "uploaded_route.fpl"
+            with open(temp_filename, "wb") as f:
+                f.write(uploaded_file.getbuffer())
             
-            # Pass the file content text directly to your existing parser
-            my_route, raw_checkpoints = parse_skyvector_fpl(fpl_content)
+            # 2. Pass the real filepath string to your existing engine parser
+            my_route, raw_checkpoints = parse_skyvector_fpl(temp_filename)
             st.session_state.parsed_route = my_route
             st.session_state.raw_checkpoints = raw_checkpoints
             
@@ -70,6 +72,10 @@ if st.button("Parse File & Fetch Weather Data", type="secondary"):
                 except Exception as weather_err:
                     st.warning(f"Weather lookup bypassed: Verify your departure time format matches HHMM. (Error: {weather_err})")
             
+            # Clean up the temporary file after a successful parse
+            if os.path.exists(temp_filename):
+                os.remove(temp_filename)
+
         except Exception as e:
             st.error(f"Error parsing .fpl file: {e}")
     else:
