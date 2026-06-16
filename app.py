@@ -100,9 +100,9 @@ if len(st.session_state.raw_parsed_route) >= 2:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        pilot_name = st.text_input("Pilot Name", placeholder="e.g., J. Doe")
-        aircraft_id = st.text_input("Aircraft Ident / Type", value="C172S")
-        altimeter = st.number_input("Altimeter Setting (inHg)", value=st.session_state.altimeter_setting, format="%.2f", step=0.01)
+    pilot_name = st.text_input("Pilot Name", placeholder="e.g., J. Doe")
+    aircraft_id = st.text_input("Aircraft Ident / Type", value="", placeholder="C-FESC")
+    altimeter = st.number_input("Altimeter Setting (inHg)", value=st.session_state.altimeter_setting, format="%.2f", step=0.01)
         
     with col2:
         st.markdown("**Contingency Rules**")
@@ -158,58 +158,75 @@ if len(st.session_state.raw_parsed_route) >= 2:
     # STEP 4: LEG-BY-LEG CONFIGURATIONS
     # ==========================================
     st.subheader("4. Leg Configurations (Altitude & RPM)")
-    st.markdown("Select an altitude to view the available performance profiles from the POH.")
+st.markdown("Select an altitude to view the available performance profiles from the POH.")
+
+leg_configs = {}
+max_planned_gph = 8.5 # Fallback baseline
+
+for i in range(len(final_route) - 1):
+    from_pt = final_route[i]['id']
+    to_pt = final_route[i+1]['id']
     
-    leg_configs = {}
+    st.markdown(f"**Leg: {from_pt} ➔ {to_pt}**")
+    col_alt, col_rpm, col_bhp = st.columns([2, 2, 1])
     
-    # Iterate through every major leg in the final route
-    for i in range(len(final_route) - 1):
-        from_pt = final_route[i]['id']
-        to_pt = final_route[i+1]['id']
+    with col_alt:
+        # Swap to number_input to allow custom values like 3500
+        alt_val = st.number_input(f"Altitude (ft)", min_value=1000, max_value=14000, step=500, value=2000, key=f"alt_{i}")
         
-        st.markdown(f"**Leg: {from_pt} ➔ {to_pt}**")
-        col_alt, col_rpm, col_bhp = st.columns([2, 2, 1])
-        
-        with col_alt:
-            alt_val = st.selectbox(f"Altitude (ft)", options=VALID_ALTITUDES, index=0, key=f"alt_{i}")
-            
-        alt_str = str(alt_val)
-        
-        # Dynamically pull valid RPMs for this altitude from the JSON (Defaulting to ISA day table for UI population)
-        if alt_str in POH_DATA and "ISA" in POH_DATA[alt_str]:
-            valid_rpms = sorted([int(rpm) for rpm in POH_DATA[alt_str]["ISA"].keys()], reverse=True)
-        else:
-            valid_rpms = [2650, 2600, 2550, 2500, 2400, 2300, 2200, 2100]
+    alt_str = str(alt_val)
+    poh_alts = sorted([int(k) for k in POH_DATA.keys()])
+    
+    # Find the ceiling altitude in the POH to restrict impossible RPMs at custom altitudes
+    ceiling_alt = str(next((a for a in poh_alts if a >= alt_val), max(poh_alts)))
+    
+    if ceiling_alt in POH_DATA and "ISA" in POH_DATA[ceiling_alt]:
+        valid_rpms = sorted([int(rpm) for rpm in POH_DATA[ceiling_alt]["ISA"].keys()], reverse=True)
+    else:
+        valid_rpms = [2600, 2550, 2500, 2400, 2300, 2200, 2100]
 
-        with col_rpm:
-            rpm_val = st.selectbox(f"RPM Setting", options=valid_rpms, key=f"rpm_{i}")
-            
-        with col_bhp:
-            # Extract the BHP/MCP percentage for info purposes
-            rpm_str = str(rpm_val)
-            bhp = "N/A"
-            if alt_str in POH_DATA and "ISA" in POH_DATA[alt_str]:
-                bhp_data = POH_DATA[alt_str]["ISA"].get(rpm_str, {})
-                bhp = bhp_data.get("MCP", "N/A")
-            
-            # Vertical alignment hack to match the height of the selectboxes
-            st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
-            st.write(f"**BHP: {bhp}%**")
-            
-        # Store for the engine dict (Convert altitude to string to prevent KeyError in backend dictionary lookups)
-        leg_configs[to_pt] = {"altitude": alt_str, "rpm": rpm_str}
+    with col_rpm:
+        rpm_val = st.selectbox(f"RPM Setting", options=valid_rpms, key=f"rpm_{i}")
         
-        # Inject directly into the route dictionaries
-        final_route[i+1]['altitude'] = alt_val
-        final_route[i+1]['rpm'] = rpm_val
+    with col_bhp:
+        rpm_str = str(rpm_val)
+        bhp = "N/A"
+        if ceiling_alt in POH_DATA and "ISA" in POH_DATA[ceiling_alt]:
+            bhp_data = POH_DATA[ceiling_alt]["ISA"].get(rpm_str, {})
+            bhp = bhp_data.get("MCP", "N/A")
+            
+            # Track max GPH for Step 5 fuel reserves
+            leg_gph = bhp_data.get("GPH", 0)
+            if isinstance(leg_gph, (int, float)) and leg_gph > max_planned_gph:
+                max_planned_gph = float(leg_gph)
+        
+        st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
+        st.write(f"**BHP: {bhp}%**")
+        
+    leg_configs[to_pt] = {"altitude": alt_str, "rpm": rpm_str}
+    final_route[i+1]['altitude'] = alt_val
+    final_route[i+1]['rpm'] = rpm_val
 
-    st.divider()
-
+st.divider()
     # ==========================================
     # STEP 5: GENERATION
     # ==========================================
-    st.subheader("5. Compile Flight Log")
+    st.subheader("5. Fuel Reserves & Compile Flight Log")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
     planned_ramp_fuel = st.number_input("Planned Ramp Fuel (Gallons)", min_value=0.0, value=0.0, step=1.0, help="Leave as 0 to calculate minimum legally required fuel layout.")
+
+with col2:
+    st.markdown("**Contingency Rules**")
+    cont_time = st.number_input("Contingency Fuel (Minutes)", min_value=0, value=10, step=5)
+    cont_flow = st.number_input("Contingency Burn Rate (GPH)", min_value=1.0, value=max_planned_gph, step=0.1)
+    
+with col3:
+    st.markdown("**Reserve Rules**")
+    res_time = st.number_input("Reserve Fuel (Minutes)", min_value=0, value=30, step=5)
+    res_flow = st.number_input("Reserve Burn Rate (GPH)", min_value=1.0, value=max_planned_gph, step=0.1)
 
     if st.button("Generate Official Navlog PDF", type="primary", use_container_width=True):
         with st.spinner("Processing performance math models and stamping PDF..."):
