@@ -155,10 +155,11 @@ if len(st.session_state.raw_parsed_route) >= 2:
     # ==========================================
     # STEP 4: LEG-BY-LEG CONFIGURATIONS
     # ==========================================
-   st.subheader("4. Leg Configurations (Altitude & RPM)")
+    st.subheader("4. Leg Configurations (Altitude & RPM)")
 
     # 1. Initialize the dictionary OUTSIDE the loop so it doesn't get erased
     FLIGHT_PROFILES = {} 
+    leg_configs = {} # Ensure this is also initialized if used
     
     for i in range(len(final_route) - 1):
         from_pt = final_route[i]['id']
@@ -200,14 +201,14 @@ if len(st.session_state.raw_parsed_route) >= 2:
             st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
             st.write(f"**BHP: {bhp}%**")
         
-    leg_configs[to_pt] = {"altitude": alt_str, "rpm": rpm_str}
-    final_route[i+1]['altitude'] = alt_val
-    final_route[i+1]['rpm'] = rpm_val
-    FLIGHT_PROFILES[to_pt] = {
-    "altitude": alt_val,
-    "rpm": rpm_val
-    }
-    
+        # --- FIXED INDENTATION: These are now inside the loop ---
+        leg_configs[to_pt] = {"altitude": alt_str, "rpm": rpm_str}
+        final_route[i+1]['altitude'] = alt_val
+        final_route[i+1]['rpm'] = rpm_val
+        FLIGHT_PROFILES[to_pt] = {
+            "altitude": alt_val,
+            "rpm": rpm_val
+        }
 
     st.divider()
     # ==========================================
