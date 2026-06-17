@@ -316,11 +316,15 @@ def process_flight_plan(route_data, leg_configs):
         start_point = route_data[i]
         end_point = route_data[i + 1]
 
-        current_config = leg_configs.get(i, leg_configs.get("DEFAULT", {}))
+        # THE FIX: Look up the config using the waypoint ID, not the integer 'i'
+        current_config = leg_configs.get(end_point['id'], leg_configs.get("DEFAULT", {}))
 
         is_climb_leg = current_config.get("is_climb_leg", False)
-        leg_altitude = current_config.get("altitude", 0)
-        leg_rpm = current_config.get("rpm", 2300)
+        
+        # Explicitly cast to integers so the math engine doesn't trip on UI strings
+        leg_altitude = int(current_config.get("altitude", 0))
+        leg_rpm = int(current_config.get("rpm", 2300))
+        
         leg_wind_dir = current_config.get("wind_dir", 0)
         leg_wind_spd = current_config.get("wind_spd", 0)
         leg_temp = current_config.get("leg_temp", 15)
