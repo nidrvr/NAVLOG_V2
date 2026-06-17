@@ -155,12 +155,11 @@ if len(st.session_state.raw_parsed_route) >= 2:
     # ==========================================
     # STEP 4: LEG-BY-LEG CONFIGURATIONS
     # ==========================================
-    st.subheader("4. Leg Configurations (Altitude & RPM)")
-    st.markdown("Select an altitude to view the available performance profiles from the POH.")
+   st.subheader("4. Leg Configurations (Altitude & RPM)")
 
-    leg_configs = {}
-    max_planned_gph = 8.5 # Fallback baseline
-
+    # 1. Initialize the dictionary OUTSIDE the loop so it doesn't get erased
+    FLIGHT_PROFILES = {} 
+    
     for i in range(len(final_route) - 1):
         from_pt = final_route[i]['id']
         to_pt = final_route[i+1]['id']
@@ -204,6 +203,11 @@ if len(st.session_state.raw_parsed_route) >= 2:
     leg_configs[to_pt] = {"altitude": alt_str, "rpm": rpm_str}
     final_route[i+1]['altitude'] = alt_val
     final_route[i+1]['rpm'] = rpm_val
+    FLIGHT_PROFILES[to_pt] = {
+    "altitude": alt_val,
+    "rpm": rpm_val
+    }
+    
 
     st.divider()
     # ==========================================
