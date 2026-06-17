@@ -160,6 +160,7 @@ if len(st.session_state.raw_parsed_route) >= 2:
     # 1. Initialize the dictionary OUTSIDE the loop so it doesn't get erased
     FLIGHT_PROFILES = {} 
     leg_configs = {} # Ensure this is also initialized if used
+    max_planned_gph = 8.5
     
     for i in range(len(final_route) - 1):
         from_pt = final_route[i]['id']
